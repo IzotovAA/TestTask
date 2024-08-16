@@ -1,11 +1,16 @@
 import styles from "./MainPage.module.scss";
 import * as React from "react";
-import { useAppSelector } from "../../rtk/hooks";
+import { useAppDispatch, useAppSelector } from "../../rtk/hooks";
 import {
-  selectData,
+  setRowsPerPage as setRowsPerPageInStore,
+  setPage as setPageInStore,
+  selectError,
   selectStatus,
   selectSearchValue,
   selectEndCursor,
+  selectDataForRender,
+  selectRowsPerPage,
+  selectPage,
 } from "../../rtk/slices/requestSlice";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -15,52 +20,101 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import TablePagination from "@mui/material/TablePagination";
+import {
+  Box,
+  IconButton,
+  TableSortLabel,
+  Toolbar,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 interface Column {
-  id: "Название" | "Язык" | "Число форков" | "Число звёзд" | "Дата обновления";
+  id: string;
   label: string;
   minWidth?: number;
+  numeric: boolean;
+  disablePadding: boolean;
 }
 
 const columns: readonly Column[] = [
-  { id: "Название", label: "Название", minWidth: 220 },
-  { id: "Язык", label: "Язык", minWidth: 120 },
+  {
+    id: "Название",
+    label: "Название",
+    minWidth: 220,
+    numeric: false,
+    disablePadding: true,
+  },
+  {
+    id: "Язык",
+    label: "Язык",
+    minWidth: 120,
+    numeric: false,
+    disablePadding: false,
+  },
   {
     id: "Число форков",
     label: "Число форков",
     minWidth: 100,
+    numeric: true,
+    disablePadding: false,
   },
   {
     id: "Число звёзд",
     label: "Число звёзд",
     minWidth: 100,
+    numeric: true,
+    disablePadding: false,
   },
   {
     id: "Дата обновления",
     label: "Дата обновления",
     minWidth: 120,
+    numeric: false,
+    disablePadding: false,
   },
 ];
 
 export default function MainPage() {
-  const data = useAppSelector(selectData);
+  const error = useAppSelector(selectError);
   const status = useAppSelector(selectStatus);
   const searchValue = useAppSelector(selectSearchValue);
   const endCursor = useAppSelector(selectEndCursor);
+  const dataForRender = useAppSelector(selectDataForRender);
+  const rowsPerPageFromStore = useAppSelector(selectRowsPerPage);
+  const pageFromStore = useAppSelector(selectPage);
 
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+  console.log("rowsPerPageFromStore", rowsPerPageFromStore);
+  console.log("pageFromStore", pageFromStore);
+
+  const dispatch = useAppDispatch();
+
+  const [page, setPage] = React.useState(pageFromStore);
+  const [rowsPerPage, setRowsPerPage] = React.useState(rowsPerPageFromStore);
+
+  console.log("status", status);
+  console.log("error", error);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
+    dispatch(setPageInStore(newPage));
   };
 
   const handleChangeRowsPerPage = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     setRowsPerPage(+event.target.value);
+    dispatch(setRowsPerPageInStore(+event.target.value));
     setPage(0);
   };
+
+  React.useEffect(() => {
+    setPage(pageFromStore);
+  }, [pageFromStore]);
+
+  // реализовать соритровку Sorting & selecting MUI !!!!!!!!!!!!!!!!!!!!
 
   return (
     <>
@@ -79,7 +133,11 @@ export default function MainPage() {
                   {columns.map((column) => (
                     <TableCell
                       key={column.id}
-                      style={{ minWidth: column.minWidth }}
+                      style={{
+                        minWidth: column.minWidth,
+                        fontWeight: 600,
+                        fontSize: 14,
+                      }}
                     >
                       {column.label}
                     </TableCell>
@@ -87,11 +145,8 @@ export default function MainPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {JSON.parse(data)
-                  .nodes.slice(
-                    page * rowsPerPage,
-                    page * rowsPerPage + rowsPerPage
-                  )
+                {dataForRender
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((row: any) => {
                     const updated = row.updatedAt
                       .split("T")[0]
@@ -104,6 +159,7 @@ export default function MainPage() {
                         role="checkbox"
                         tabIndex={-1}
                         key={row.id}
+                        sx={{ fontSize: 14, fontWeight: 400 }}
                       >
                         <TableCell component="th" scope="row">
                           {row.name}
@@ -125,7 +181,7 @@ export default function MainPage() {
           <TablePagination
             rowsPerPageOptions={[10, 25, 100]}
             component="div"
-            count={JSON.parse(data).nodes.length}
+            count={dataForRender.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -136,6 +192,11 @@ export default function MainPage() {
         <div className={styles.main}>
           <h1>Загрузка</h1>
         </div>
+      ) : status === "error" ? (
+        <div className={styles.mainError}>
+          <h1>Произошла ошибка</h1>
+          <div>{error}</div>
+        </div>
       ) : (
         <div className={styles.main}>
           <h1>Добро пожаловать</h1>
@@ -144,6 +205,93 @@ export default function MainPage() {
     </>
   );
 }
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+// return (
+//   <>
+//     {status === "completed" ? (
+//       <Paper
+//         style={{
+//           width: "100vw",
+//           overflow: "hidden",
+//           height: "calc(100vh - 112px)",
+//         }}
+//       >
+//         <TableContainer style={{ height: "calc(100vh - 164px)" }}>
+//           <Table stickyHeader aria-label="sticky table">
+//             <TableHead>
+//               <TableRow>
+//                 {columns.map((column) => (
+//                   <TableCell
+//                     key={column.id}
+//                     style={{
+//                       minWidth: column.minWidth,
+//                       fontWeight: 600,
+//                       fontSize: 14,
+//                     }}
+//                   >
+//                     {column.label}
+//                   </TableCell>
+//                 ))}
+//               </TableRow>
+//             </TableHead>
+//             <TableBody>
+//               {dataForRender
+//                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+//                 .map((row: any) => {
+//                   const updated = row.updatedAt
+//                     .split("T")[0]
+//                     .split("-")
+//                     .reverse()
+//                     .join(".");
+//                   return (
+//                     <TableRow
+//                       hover
+//                       role="checkbox"
+//                       tabIndex={-1}
+//                       key={row.id}
+//                       sx={{ fontSize: 14, fontWeight: 400 }}
+//                     >
+//                       <TableCell component="th" scope="row">
+//                         {row.name}
+//                       </TableCell>
+//                       <TableCell>
+//                         {row.languages.nodes[0]
+//                           ? row.languages.nodes[0].name
+//                           : "Н/Д"}
+//                       </TableCell>
+//                       <TableCell>{row.forkCount}</TableCell>
+//                       <TableCell>{row.stargazers.totalCount}</TableCell>
+//                       <TableCell>{updated}</TableCell>
+//                     </TableRow>
+//                   );
+//                 })}
+//             </TableBody>
+//           </Table>
+//         </TableContainer>
+//         <TablePagination
+//           rowsPerPageOptions={[10, 25, 100]}
+//           component="div"
+//           count={dataForRender.length}
+//           rowsPerPage={rowsPerPage}
+//           page={page}
+//           onPageChange={handleChangePage}
+//           onRowsPerPageChange={handleChangeRowsPerPage}
+//         />
+//       </Paper>
+//     ) : status === "loading" ? (
+//       <div className={styles.main}>
+//         <h1>Загрузка</h1>
+//       </div>
+//     ) : (
+//       <div className={styles.main}>
+//         <h1>Добро пожаловать</h1>
+//       </div>
+//     )}
+//   </>
+// );
+// }
 
 {
   /* <TableContainer component={Paper}>

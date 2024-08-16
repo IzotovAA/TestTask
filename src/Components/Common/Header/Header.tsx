@@ -1,26 +1,29 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styles from "./Header.module.scss";
 import { Button, TextField } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../../rtk/hooks";
 import {
-  setData,
+  setError,
   setSearchValue,
+  setStatus,
+  setPage as setPageInStore,
+  resetDataForRender,
   requestToGraphQL,
-  selectData,
+  selectError,
   selectStatus,
   selectSearchValue,
   selectEndCursor,
+  selectDataForRender,
 } from "../../../rtk/slices/requestSlice";
 
 export default function Header() {
   const [value, setValue] = useState("");
   const dispatch = useAppDispatch();
-  const data = useAppSelector(selectData);
+  const error = useAppSelector(selectError);
   const status = useAppSelector(selectStatus);
   const searchValue = useAppSelector(selectSearchValue);
   const endCursor = useAppSelector(selectEndCursor);
-
-  console.log("endCursor", endCursor);
+  const dataForRender = useAppSelector(selectDataForRender);
 
   const dataForRequest = `{
     search(query:"in:name ${value}", type:REPOSITORY, first:100){
@@ -93,13 +96,17 @@ export default function Header() {
   const inputHandler = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setValue(event.target.value);
     dispatch(setSearchValue(value));
+    dispatch(resetDataForRender());
+    dispatch(setPageInStore(0));
   };
 
   const buttonHandler = () => {
-    console.log("value", value);
-    console.log("typeof value", typeof value);
-
-    dispatch(requestToGraphQL(dataForRequest));
+    if (value !== "") {
+      dispatch(requestToGraphQL(dataForRequest));
+    } else {
+      dispatch(setError("Поисковый запрос не может быть пустым"));
+      dispatch(setStatus("error"));
+    }
   };
 
   return (
@@ -121,7 +128,7 @@ export default function Header() {
           variant="contained"
           size="large"
           onClick={() => {
-            const result = JSON.parse(data);
+            const result = dataForRender;
             console.log("typeof result", typeof result);
             console.log("result", result);
           }}
