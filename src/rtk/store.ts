@@ -5,11 +5,13 @@ export const store = configureStore({
   reducer: {
     request: requestSlice.reducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
 
-// Infer the type of `store`
 export type AppStore = typeof store;
-// Infer the `AppDispatch` type from the store itself
 export type AppDispatch = AppStore["dispatch"];

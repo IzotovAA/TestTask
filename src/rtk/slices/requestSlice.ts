@@ -12,7 +12,7 @@ export interface IDataForRender {
   updatedAtDateFormat?: Date;
   url: string;
   languages: {
-    [index: number]: { name: string } | null;
+    nodes: [{ name: string }] | [];
   };
   licenseInfo: { name: string } | null;
   stargazers: { totalCount: number };
@@ -40,18 +40,12 @@ const initialState: IRequestSliceState = {
   page: 0,
 };
 
-// If you are not using async thunks you can use the standalone `createSlice`.
 export const requestSlice = createAppSlice({
   name: "request",
-  // `createSlice` will infer the state type from the `initialState` argument
   initialState,
-  // The `reducers` field lets us define reducers and generate associated actions
+
   reducers: (create) => ({
     setError: create.reducer((state, action: PayloadAction<string>) => {
-      // Redux Toolkit allows us to write "mutating" logic in reducers. It
-      // doesn't actually mutate the state because it uses the Immer library,
-      // which detects changes to a "draft state" and produces a brand new
-      // immutable state based off those changes
       state.error = action.payload;
     }),
 
@@ -82,17 +76,9 @@ export const requestSlice = createAppSlice({
       state.page = action.payload;
     }),
 
-    // The function below is called a thunk and allows us to perform async logic. It
-    // can be dispatched like a regular action: `dispatch(incrementAsync(10))`. This
-    // will call the thunk with the `dispatch` function as the first argument. Async
-    // code can then be executed and other actions can be dispatched. Thunks are
-    // typically used to make async requests.
     requestToGraphQL: create.asyncThunk(
       async (data: string): Promise<IRecievedData | string> => {
         const result = await requestGraphQL(data);
-        // The value we return becomes the `fulfilled` action payload
-
-        console.log("result", result);
 
         return result;
       },
@@ -102,15 +88,13 @@ export const requestSlice = createAppSlice({
           state.status = "loading";
         },
         fulfilled: (state, action: PayloadAction<IRecievedData | string>) => {
-          console.log("action.payload", action.payload);
-
           if (typeof action.payload === "string") {
             state.status = "error";
             state.error = action.payload;
-            console.log("error");
           } else {
-            const recieved: IDataForRender[] = action.payload.nodes;
-            const result: IDataForRender[] = addDateFromat(recieved);
+            const result: IDataForRender[] = addDateFromat(
+              action.payload.nodes
+            );
 
             state.dataForRender = [...state.dataForRender, ...result];
 
@@ -119,25 +103,16 @@ export const requestSlice = createAppSlice({
 
             state.status = "completed";
             state.error = null;
-
-            console.log("state.dataForRender", state.dataForRender);
           }
-
-          // реализовать хранение в хранилище массива с нужными данными и добавления туда нового поиска по конечному курсору
         },
         rejected: (state) => {
-          console.log("rejected");
-
           state.status = "failed";
-
-          console.log("state", state);
-          // state.error = "Ошибка asyncThunk requestToGraphQL";
+          state.error = "Ошибка asyncThunk requestToGraphQL";
         },
       }
     ),
   }),
-  // You can define your selectors here. These selectors receive the slice
-  // state as their first argument.
+
   selectors: {
     selectError: (request) => request.error,
     selectStatus: (request) => request.status,
@@ -150,7 +125,6 @@ export const requestSlice = createAppSlice({
   },
 });
 
-// Action creators are generated for each case reducer function.
 export const {
   setError,
   setSearchValue,
@@ -161,7 +135,6 @@ export const {
   requestToGraphQL,
 } = requestSlice.actions;
 
-// Selectors returned by `slice.selectors` take the root state as their first argument.
 export const {
   selectError,
   selectStatus,

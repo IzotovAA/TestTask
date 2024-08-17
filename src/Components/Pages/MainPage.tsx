@@ -6,11 +6,10 @@ import {
   setPage as setPageInStore,
   selectError,
   selectStatus,
-  selectSearchValue,
-  selectEndCursor,
   selectDataForRender,
   selectRowsPerPage,
   selectPage,
+  IDataForRender,
 } from "../../rtk/slices/requestSlice";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -20,16 +19,8 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import TablePagination from "@mui/material/TablePagination";
-import {
-  Box,
-  IconButton,
-  TableSortLabel,
-  Toolbar,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { Box, TableSortLabel } from "@mui/material";
+import { visuallyHidden } from "@mui/utils";
 
 interface Column {
   id: string;
@@ -43,28 +34,28 @@ const columns: readonly Column[] = [
   {
     id: "Название",
     label: "Название",
-    minWidth: 220,
+    minWidth: 250,
     numeric: false,
     disablePadding: true,
   },
   {
     id: "Язык",
     label: "Язык",
-    minWidth: 120,
+    minWidth: 150,
     numeric: false,
     disablePadding: false,
   },
   {
     id: "Число форков",
     label: "Число форков",
-    minWidth: 100,
+    minWidth: 80,
     numeric: true,
     disablePadding: false,
   },
   {
     id: "Число звёзд",
     label: "Число звёзд",
-    minWidth: 100,
+    minWidth: 80,
     numeric: true,
     disablePadding: false,
   },
@@ -77,25 +68,135 @@ const columns: readonly Column[] = [
   },
 ];
 
+function descendingComparator(a: any, b: any, orderBy: string) {
+  let bContent, aContent;
+
+  switch (orderBy) {
+    case "Название":
+      aContent = a.name;
+      bContent = b.name;
+      break;
+
+    case "Язык":
+      aContent = a.languages.nodes[0]?.name || "";
+      bContent = b.languages.nodes[0]?.name || "";
+      break;
+
+    case "Число форков":
+      aContent = a.forkCount;
+      bContent = b.forkCount;
+      break;
+
+    case "Число звёзд":
+      aContent = a.stargazers.totalCount;
+      bContent = b.stargazers.totalCount;
+      break;
+
+    case "Дата обновления":
+      aContent = a.updatedAtDateFormat;
+      bContent = b.updatedAtDateFormat;
+      break;
+
+    default:
+      break;
+  }
+
+  if (bContent < aContent) {
+    return -1;
+  }
+  if (bContent > aContent) {
+    return 1;
+  }
+
+  return 0;
+}
+
+type Order = "asc" | "desc";
+
+function getComparator(
+  order: Order,
+  orderBy: string
+): (a: IDataForRender, b: IDataForRender) => number {
+  return order === "desc"
+    ? (a, b) => descendingComparator(a, b, orderBy)
+    : (a, b) => -descendingComparator(a, b, orderBy);
+}
+
+function stableSort<T>(
+  array: readonly T[],
+  comparator: (a: T, b: T) => number
+) {
+  const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
+
+  stabilizedThis.sort((a, b) => {
+    const order = comparator(a[0], b[0]);
+
+    if (order !== 0) {
+      return order;
+    }
+    return a[1] - b[1];
+  });
+
+  return stabilizedThis.map((el) => el[0]);
+}
+
+interface EnhancedTableProps {
+  // numSelected: number;
+  onRequestSort: (event: React.MouseEvent<unknown>, property: string) => void;
+  order: Order;
+  orderBy: string;
+  // rowCount: number;
+}
+
+function EnhancedTableHead(props: EnhancedTableProps) {
+  const { order, orderBy, onRequestSort } = props;
+  const createSortHandler =
+    (property: string) => (event: React.MouseEvent<unknown>) => {
+      onRequestSort(event, property);
+    };
+
+  return (
+    <TableHead>
+      <TableRow>
+        {columns.map((headCell) => (
+          <TableCell
+            key={headCell.id}
+            sortDirection={orderBy === headCell.id ? order : false}
+            sx={{ px: 1 }}
+          >
+            <TableSortLabel
+              active={orderBy === headCell.id}
+              direction={orderBy === headCell.id ? order : "asc"}
+              onClick={createSortHandler(headCell.id)}
+            >
+              {headCell.label}
+              {orderBy === headCell.id ? (
+                <Box component="span" sx={visuallyHidden}>
+                  {order === "desc" ? "sorted descending" : "sorted ascending"}
+                </Box>
+              ) : null}
+            </TableSortLabel>
+          </TableCell>
+        ))}
+      </TableRow>
+    </TableHead>
+  );
+}
+
 export default function MainPage() {
   const error = useAppSelector(selectError);
   const status = useAppSelector(selectStatus);
-  const searchValue = useAppSelector(selectSearchValue);
-  const endCursor = useAppSelector(selectEndCursor);
   const dataForRender = useAppSelector(selectDataForRender);
   const rowsPerPageFromStore = useAppSelector(selectRowsPerPage);
   const pageFromStore = useAppSelector(selectPage);
-
-  console.log("rowsPerPageFromStore", rowsPerPageFromStore);
-  console.log("pageFromStore", pageFromStore);
+  const [order, setOrder] = React.useState<Order>("asc");
+  const [orderBy, setOrderBy] = React.useState<string>("Число форков");
+  // const [selected, setSelected] = React.useState<readonly string[]>([]);
 
   const dispatch = useAppDispatch();
 
   const [page, setPage] = React.useState(pageFromStore);
   const [rowsPerPage, setRowsPerPage] = React.useState(rowsPerPageFromStore);
-
-  console.log("status", status);
-  console.log("error", error);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -114,54 +215,82 @@ export default function MainPage() {
     setPage(pageFromStore);
   }, [pageFromStore]);
 
-  // реализовать соритровку Sorting & selecting MUI !!!!!!!!!!!!!!!!!!!!
+  const handleRequestSort = (
+    event: React.MouseEvent<unknown>,
+    property: string
+  ) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  // const handleClick = (event: React.MouseEvent<unknown>, id: string) => {
+  //   const selectedIndex = selected.indexOf(id);
+  //   let newSelected: readonly string[] = [];
+
+  //   if (selectedIndex === -1) {
+  //     newSelected = newSelected.concat(selected, id);
+  //   } else if (selectedIndex === 0) {
+  //     newSelected = newSelected.concat(selected.slice(1));
+  //   } else if (selectedIndex === selected.length - 1) {
+  //     newSelected = newSelected.concat(selected.slice(0, -1));
+  //   } else if (selectedIndex > 0) {
+  //     newSelected = newSelected.concat(
+  //       selected.slice(0, selectedIndex),
+  //       selected.slice(selectedIndex + 1)
+  //     );
+  //   }
+  //   setSelected(newSelected);
+  // };
+
+  const visibleRows = React.useMemo(
+    () =>
+      stableSort<IDataForRender>(
+        dataForRender,
+        getComparator(order, orderBy)
+      ).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [order, orderBy, page, rowsPerPage, dataForRender]
+  );
 
   return (
     <>
       {status === "completed" ? (
-        <Paper
-          style={{
-            width: "100vw",
-            overflow: "hidden",
-            height: "calc(100vh - 112px)",
-          }}
-        >
-          <TableContainer style={{ height: "calc(100vh - 164px)" }}>
-            <Table stickyHeader aria-label="sticky table">
-              <TableHead>
-                <TableRow>
-                  {columns.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      style={{
-                        minWidth: column.minWidth,
-                        fontWeight: 600,
-                        fontSize: 14,
-                      }}
-                    >
-                      {column.label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {dataForRender
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row: any) => {
+        <>
+          <Paper
+            style={{
+              width: "67vw",
+              overflow: "hidden",
+              height: "calc(100vh - 112px)",
+            }}
+          >
+            <TableContainer style={{ height: "calc(100vh - 164px)" }}>
+              <Table stickyHeader aria-label="sticky table">
+                <EnhancedTableHead
+                  // numSelected={selected.length}
+                  order={order}
+                  orderBy={orderBy}
+                  onRequestSort={handleRequestSort}
+                  // rowCount={dataForRender.length}
+                />
+                <TableBody>
+                  {visibleRows.map((row, index) => {
                     const updated = row.updatedAt
                       .split("T")[0]
                       .split("-")
                       .reverse()
                       .join(".");
+
+                    const labelId = `enhanced-table-checkbox-${index}`;
                     return (
                       <TableRow
                         hover
+                        // onClick={(event) => handleClick(event, row.id)}
                         role="checkbox"
                         tabIndex={-1}
                         key={row.id}
                         sx={{ fontSize: 14, fontWeight: 400 }}
                       >
-                        <TableCell component="th" scope="row">
+                        <TableCell component="th" id={labelId} scope="row">
                           {row.name}
                         </TableCell>
                         <TableCell>
@@ -175,19 +304,20 @@ export default function MainPage() {
                       </TableRow>
                     );
                   })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 100]}
-            component="div"
-            count={dataForRender.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </Paper>
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[10, 25, 100]}
+              component="div"
+              count={dataForRender.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </Paper>
+        </>
       ) : status === "loading" ? (
         <div className={styles.main}>
           <h1>Загрузка</h1>
@@ -204,150 +334,4 @@ export default function MainPage() {
       )}
     </>
   );
-}
-
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-// return (
-//   <>
-//     {status === "completed" ? (
-//       <Paper
-//         style={{
-//           width: "100vw",
-//           overflow: "hidden",
-//           height: "calc(100vh - 112px)",
-//         }}
-//       >
-//         <TableContainer style={{ height: "calc(100vh - 164px)" }}>
-//           <Table stickyHeader aria-label="sticky table">
-//             <TableHead>
-//               <TableRow>
-//                 {columns.map((column) => (
-//                   <TableCell
-//                     key={column.id}
-//                     style={{
-//                       minWidth: column.minWidth,
-//                       fontWeight: 600,
-//                       fontSize: 14,
-//                     }}
-//                   >
-//                     {column.label}
-//                   </TableCell>
-//                 ))}
-//               </TableRow>
-//             </TableHead>
-//             <TableBody>
-//               {dataForRender
-//                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-//                 .map((row: any) => {
-//                   const updated = row.updatedAt
-//                     .split("T")[0]
-//                     .split("-")
-//                     .reverse()
-//                     .join(".");
-//                   return (
-//                     <TableRow
-//                       hover
-//                       role="checkbox"
-//                       tabIndex={-1}
-//                       key={row.id}
-//                       sx={{ fontSize: 14, fontWeight: 400 }}
-//                     >
-//                       <TableCell component="th" scope="row">
-//                         {row.name}
-//                       </TableCell>
-//                       <TableCell>
-//                         {row.languages.nodes[0]
-//                           ? row.languages.nodes[0].name
-//                           : "Н/Д"}
-//                       </TableCell>
-//                       <TableCell>{row.forkCount}</TableCell>
-//                       <TableCell>{row.stargazers.totalCount}</TableCell>
-//                       <TableCell>{updated}</TableCell>
-//                     </TableRow>
-//                   );
-//                 })}
-//             </TableBody>
-//           </Table>
-//         </TableContainer>
-//         <TablePagination
-//           rowsPerPageOptions={[10, 25, 100]}
-//           component="div"
-//           count={dataForRender.length}
-//           rowsPerPage={rowsPerPage}
-//           page={page}
-//           onPageChange={handleChangePage}
-//           onRowsPerPageChange={handleChangeRowsPerPage}
-//         />
-//       </Paper>
-//     ) : status === "loading" ? (
-//       <div className={styles.main}>
-//         <h1>Загрузка</h1>
-//       </div>
-//     ) : (
-//       <div className={styles.main}>
-//         <h1>Добро пожаловать</h1>
-//       </div>
-//     )}
-//   </>
-// );
-// }
-
-{
-  /* <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} aria-label="simple table">
-            <TableHead>
-              <TableRow>
-                <TableCell>Название</TableCell>
-                <TableCell>Язык</TableCell>
-                <TableCell>Число форков</TableCell>
-                <TableCell>Число звёзд</TableCell>
-                <TableCell>Дата обновления</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {JSON.parse(data).data.search.nodes.map((row: any) => (
-                <TableRow
-                  key={row.id}
-                  sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                >
-                  <TableCell component="th" scope="row">
-                    {row.name}
-                  </TableCell>
-                  <TableCell>{row.languages.nodes[0].name}</TableCell>
-                  <TableCell>{row.forkCount}</TableCell>
-                  <TableCell>{row.stargazers.totalCount}</TableCell>
-                  <TableCell>{row.updatedAt}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer> */
-}
-
-{
-  /* <div className={styles.main}>
-          <div>
-            <div>Название</div>
-            <div>Язык</div>
-            <div>Число форков</div>
-            <div>Число звёзд</div>
-            <div>Дата обновления</div>
-          </div>
-          <ul>
-            {JSON.parse(data).data.search.nodes.map((elem: any) => {
-              return (
-                <li key={elem.id}>
-                  <div>
-                    <div>{elem.name}</div>
-                    <div>{elem.languages.nodes[0].name}</div>
-                    <div>{elem.forkCount}</div>
-                    <div>{elem.stargazers.totalCount}</div>
-                    <div>{elem.updatedAt}</div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div> */
 }

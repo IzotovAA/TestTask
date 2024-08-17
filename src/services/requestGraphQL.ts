@@ -18,25 +18,15 @@ export default async function requestGraphQL(
   const result = await axiosGraphQL
     .post("", { query: data })
     .then((res) => {
-      console.log("res", res);
-
       if (Boolean(res.data?.data?.search) === true) {
-        console.log("res.data.data.search");
-
         return res.data.data.search;
       } else if (Boolean(res.data?.errors) === true) {
-        console.log("res.data.errors");
-
         return res.data.errors[0].message;
       } else {
-        console.log("else");
-
         return "не понятная ошибка запроса к GraphQLAPI";
       }
     })
     .catch((error) => {
-      console.log("catch error", error);
-
       return error;
     });
 

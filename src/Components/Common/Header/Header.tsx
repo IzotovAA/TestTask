@@ -9,21 +9,23 @@ import {
   setPage as setPageInStore,
   resetDataForRender,
   requestToGraphQL,
-  selectError,
-  selectStatus,
+  // selectError,
+  // selectStatus,
   selectSearchValue,
   selectEndCursor,
-  selectDataForRender,
+  // selectDataForRender,
+  selectRepositoryCount,
 } from "../../../rtk/slices/requestSlice";
 
 export default function Header() {
   const [value, setValue] = useState("");
   const dispatch = useAppDispatch();
-  const error = useAppSelector(selectError);
-  const status = useAppSelector(selectStatus);
+  // const error = useAppSelector(selectError);
+  // const status = useAppSelector(selectStatus);
   const searchValue = useAppSelector(selectSearchValue);
   const endCursor = useAppSelector(selectEndCursor);
-  const dataForRender = useAppSelector(selectDataForRender);
+  // const dataForRender = useAppSelector(selectDataForRender);
+  const repositoryCount = useAppSelector(selectRepositoryCount);
 
   const dataForRequest = `{
     search(query:"in:name ${value}", type:REPOSITORY, first:100){
@@ -95,14 +97,16 @@ export default function Header() {
 
   const inputHandler = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setValue(event.target.value);
-    dispatch(setSearchValue(value));
     dispatch(resetDataForRender());
     dispatch(setPageInStore(0));
   };
 
   const buttonHandler = () => {
     if (value !== "") {
-      dispatch(requestToGraphQL(dataForRequest));
+      if (value !== searchValue) {
+        dispatch(setSearchValue(value));
+        dispatch(requestToGraphQL(dataForRequest));
+      }
     } else {
       dispatch(setError("Поисковый запрос не может быть пустым"));
       dispatch(setStatus("error"));
@@ -124,27 +128,20 @@ export default function Header() {
         <Button variant="contained" size="large" onClick={buttonHandler}>
           Искать
         </Button>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={() => {
-            const result = dataForRender;
-            console.log("typeof result", typeof result);
-            console.log("result", result);
-          }}
-        >
-          Проверить store
-        </Button>
+
         {endCursor !== "" ? (
-          <Button
-            variant="contained"
-            size="medium"
-            onClick={() => {
-              dispatch(requestToGraphQL(dataForRequestNext));
-            }}
-          >
-            Ещё
-          </Button>
+          <>
+            <div className={styles.div}>Всего найдено: {repositoryCount}</div>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => {
+                dispatch(requestToGraphQL(dataForRequestNext));
+              }}
+            >
+              Отобразить ещё
+            </Button>
+          </>
         ) : null}
       </header>
     </>
