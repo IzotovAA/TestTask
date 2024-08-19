@@ -9,22 +9,21 @@ import {
   setPage as setPageInStore,
   resetDataForRender,
   requestToGraphQL,
-  // selectError,
-  // selectStatus,
   selectSearchValue,
   selectEndCursor,
-  // selectDataForRender,
   selectRepositoryCount,
+  setDetailIsActive,
+  resetEndCursor,
+  selectDataForRender,
 } from "../../../rtk/slices/requestSlice";
 
+// возвращает разметку хидера
 export default function Header() {
   const [value, setValue] = useState("");
   const dispatch = useAppDispatch();
-  // const error = useAppSelector(selectError);
-  // const status = useAppSelector(selectStatus);
   const searchValue = useAppSelector(selectSearchValue);
   const endCursor = useAppSelector(selectEndCursor);
-  // const dataForRender = useAppSelector(selectDataForRender);
+  const dataForRender = useAppSelector(selectDataForRender);
   const repositoryCount = useAppSelector(selectRepositoryCount);
 
   const dataForRequest = `{
@@ -95,12 +94,16 @@ export default function Header() {
   }
   ;`;
 
+  // обрабатывает введённую в инпут информацию
   const inputHandler = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setValue(event.target.value);
     dispatch(resetDataForRender());
     dispatch(setPageInStore(0));
+    dispatch(setDetailIsActive(false));
+    dispatch(resetEndCursor());
   };
 
+  // обрабатывает нажатие на кнопку искать
   const buttonHandler = () => {
     if (value !== "") {
       if (value !== searchValue) {
@@ -119,17 +122,27 @@ export default function Header() {
         <TextField
           id="outlined-basic"
           label="Введите поисковый запрос"
-          variant="outlined"
+          variant="filled"
           size="small"
           className={styles.input}
           onChange={inputHandler}
           value={value}
+          style={{
+            background: "#F2F2F2",
+            fontFamily: "Roboto",
+            fontSize: "14px",
+            fontWeight: 500,
+            lineHeight: "24px",
+            letterSpacing: "0.17px",
+            color: "#828282",
+            fontStyle: "italic",
+          }}
         />
         <Button variant="contained" size="large" onClick={buttonHandler}>
           Искать
         </Button>
 
-        {endCursor !== "" ? (
+        {endCursor !== "" && repositoryCount > dataForRender.length ? (
           <>
             <div className={styles.div}>Всего найдено: {repositoryCount}</div>
             <Button

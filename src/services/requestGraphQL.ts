@@ -12,6 +12,7 @@ export interface IRecievedData {
   repositoryCount: number;
 }
 
+// осуществялет запрос к GitHub GraphQLAPI
 export default async function requestGraphQL(
   data: string
 ): Promise<IRecievedData | string> {
@@ -23,7 +24,7 @@ export default async function requestGraphQL(
       } else if (Boolean(res.data?.errors) === true) {
         return res.data.errors[0].message;
       } else {
-        return "не понятная ошибка запроса к GraphQLAPI";
+        return "Непонятная ошибка запроса к GraphQLAPI";
       }
     })
     .catch((error) => {

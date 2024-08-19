@@ -27,6 +27,7 @@ export interface IRequestSliceState {
   repositoryCount: number;
   rowsPerPage: number;
   page: number;
+  detailIsActive: boolean;
 }
 
 const initialState: IRequestSliceState = {
@@ -38,6 +39,7 @@ const initialState: IRequestSliceState = {
   repositoryCount: 0,
   rowsPerPage: 10,
   page: 0,
+  detailIsActive: false,
 };
 
 export const requestSlice = createAppSlice({
@@ -74,6 +76,16 @@ export const requestSlice = createAppSlice({
 
     setPage: create.reducer((state, action: PayloadAction<number>) => {
       state.page = action.payload;
+    }),
+
+    setDetailIsActive: create.reducer(
+      (state, action: PayloadAction<boolean>) => {
+        state.detailIsActive = action.payload;
+      }
+    ),
+
+    resetEndCursor: create.reducer((state) => {
+      state.endCursor = "";
     }),
 
     requestToGraphQL: create.asyncThunk(
@@ -122,6 +134,7 @@ export const requestSlice = createAppSlice({
     selectRepositoryCount: (request) => request.repositoryCount,
     selectRowsPerPage: (request) => request.rowsPerPage,
     selectPage: (request) => request.page,
+    selectDetailIsActive: (request) => request.detailIsActive,
   },
 });
 
@@ -132,6 +145,8 @@ export const {
   setStatus,
   setRowsPerPage,
   setPage,
+  setDetailIsActive,
+  resetEndCursor,
   requestToGraphQL,
 } = requestSlice.actions;
 
@@ -144,4 +159,5 @@ export const {
   selectRepositoryCount,
   selectRowsPerPage,
   selectPage,
+  selectDetailIsActive,
 } = requestSlice.selectors;
