@@ -18,4 +18,4 @@
 
 ## Как открыть/запустить
 
-Для запуска скопировать проект в папку, открыть его в редакторе кода, в терминале набрать команду npm install, после того как установится набрать команду npm run dev
+Для запуска скопировать проект в папку, открыть его в редакторе кода, в терминале набрать команду npm install. После того как установится создать в корне проекта файл .env.local, в нём написать VITE_AUTH_TOKEN = сюда вставить свой персональный токен доступа GitHub. О том как его сделать можно прочтитать в https://docs.github.com/ru/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic Далее набрать команду в терминале npm run dev.

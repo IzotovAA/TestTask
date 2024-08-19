@@ -13,7 +13,7 @@ interface IDetailInfo {
   id: string;
 }
 
-// возвращает размету для отображения деталей о выбранном репозитории
+// возвращает разметку для отображения деталей о выбранном репозитории
 export default function DetailInfo(props: IDetailInfo) {
   const { isActive, id } = props;
   const dataForRender: IDataForRender[] = useAppSelector(selectDataForRender);

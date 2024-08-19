@@ -28,7 +28,7 @@ export default async function requestGraphQL(
       }
     })
     .catch((error) => {
-      return error;
+      return error.message;
     });
 
   return result;
